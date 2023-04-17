@@ -1,0 +1,8 @@
+*.bat
+*.exe
+*.json
+*.log
+*.pyc
+*.token
+/log/
+/src/test.py
