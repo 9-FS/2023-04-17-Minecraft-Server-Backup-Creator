@@ -13,7 +13,7 @@ def exec_minecraft_server_command(command: str, minecraft_server_screen_name: st
     - logger: logger to log to
     """
     logger.info(f"Executing minecraft server command \"{command}\"...")
-    os.system(f"screen -S \"{minecraft_server_screen_name}\" -X stuff '{command}\015'")   #jump into screen, execute command, press enter
+    os.system(f"screen -S \"{minecraft_server_screen_name}\" -X stuff '{command}\n'")   #jump into screen, execute command, press enter
     logger.info(f"\rExecuted minecraft server command \"{command}\".")
     return
 
