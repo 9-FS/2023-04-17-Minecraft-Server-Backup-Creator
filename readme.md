@@ -25,5 +25,4 @@ It handles:
 1. removing the local backup `.tar`
 1. removing all online backups except the newest `KEEP_BACKUPS`
 
-
 </body>
