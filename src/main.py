@@ -30,7 +30,7 @@ def main(logger: logging.Logger) -> None:
     KEEP_BACKUPS: int=30                                    #keep this amount of most recent backups
     server_backup_next_DT: dt.datetime                      #next backup datetime
     SERVER_BACKUP_T: dt.time=dt.time(hour=0, minute=0)      #at what time will the backups be made
-    shutdown_warnings: list[tuple[int, str]]                #shutdown warning plan
+    shutdown_warnings: list[tuple[float, str]]              #shutdown warning plan
 
     try:
         CONFIG=json.loads(KFS.config.load_config("minecraft server dropbox backup creator.json", json.dumps(CONFIG_CONTENT_DEFAULT, indent=4)))
@@ -41,7 +41,7 @@ def main(logger: logging.Logger) -> None:
     except FileNotFoundError:
         return
     dbx=dropbox.Dropbox(oauth2_refresh_token=DROPBOX_API_CRED["refresh_token"], app_key=DROPBOX_API_CRED["app_key"], app_secret=DROPBOX_API_CRED["app_secret"]) #create Dropbox instance
-    server_restart_command: str=f"screen -S \"{CONFIG['minecraft_server_screen_name']}\" -dm bash -c \"cd ../'2023-04-13 Minecraft Auenland Server';  java -Xms1G -Xmx2560M -jar 'server.jar' nogui\""
+    server_restart_command: str=f"screen -S \"{CONFIG['minecraft_server_screen_name']}\" -dm bash -c \"cd ../'2023-04-13 Minecraft Auenland Server'; java -Xms10G -Xmx10G -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -jar 'server.jar' nogui\""
 
 
     while True:
@@ -53,19 +53,19 @@ def main(logger: logging.Logger) -> None:
         logger.info(f"next server backup at: {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')}")
         
         shutdown_warnings=[ #shutdown warning plan
-            (1000, f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for its daily backup."),
-            ( 100, f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for its daily backup."),
-            (  50,  "say 50"),
-            (  40,  "say 40"),
-            (  30,  "say 30"),
-            (  20,  "say 20"),
-            (  10,  "say 10"),
-            (   5,  "say 5"),
-            (   4,  "say 4"),
-            (   3,  "say 3"),
-            (   2,  "say 2"),
-            (   1,  "say 1"),
-            (   0,  "say Shutdown."),
+            (1000,   f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for its daily backup."),
+            ( 100,   f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for its daily backup."),
+            (  50,    "say 50"),
+            (  40,    "say 40"),
+            (  30,    "say 30"),
+            (  20,    "say 20"),
+            (  10,    "say 10"),
+            (   5,    "say 5"),
+            (   4,    "say 4"),
+            (   3,    "say 3"),
+            (   2,    "say 2"),
+            (   1,    "say 1"),
+            (   0.5,  "say Shutdown."),
         ]
         for shutdown_warning in shutdown_warnings:                                                                  #make shutdown warnings beforehand
             while dt.datetime.now(dt.timezone.utc)<server_backup_next_DT-dt.timedelta(seconds=shutdown_warning[0]): #wait until appropiate warning time
