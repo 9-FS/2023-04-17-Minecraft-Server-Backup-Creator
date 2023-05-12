@@ -75,13 +75,13 @@ def main(logger: logging.Logger) -> None:
         time.sleep(100)                                                                                             #wait until shutdown process complete
 
         backup_filename=f"{server_backup_next_DT.strftime('%Y-%m-%d %H_%M')} backup.tar"        #backup filename is backup datetime .tar
-        logger.info(f"Compressing \"{CONFIG['source_path']}\" into \"{backup_filename}\"...")
+        logger.info(f"Executing \"tar cf \"{backup_filename}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backup_filename}\"...")
         os.system(f"tar cf \"{backup_filename}\" \"{CONFIG['source_path']}\"")                  #compress server folder
-        logger.info(f"\rCompressed \"{CONFIG['source_path']}\" into \"{backup_filename}\".")
+        logger.info(f"\rExecuted \"tar cf \"{backup_filename}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backup_filename}\".")
 
-        logger.info("Restarting server...")
+        logger.info(f"Executing \"{server_restart_command}\" to restart server...")
         os.system(server_restart_command)   #restart server as soon as possible
-        logger.info("\rRestarted server.")
+        logger.info(f"\rExecuted \"{server_restart_command}\" to restart server.")
 
         logger.info(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\"...")
         KFS.dropbox.upload_file(dbx, backup_filename, os.path.join(CONFIG["dropbox_dest_path"], backup_filename))   #upload backup
@@ -102,10 +102,7 @@ def main(logger: logging.Logger) -> None:
                                      if os.path.isfile(dropbox_dest_path_filename)==True and os.path.splitext(dropbox_dest_path_filename)==".tar"]    
         logger.info(f"\rLoaded filenames from \"{CONFIG['dropbox_dest_path']}\".")
         logger.debug(dropbox_dest_path_filenames)
-        logger.info(f"Deleting old backups...")
         for i in range(len(dropbox_dest_path_filenames)-KEEP_BACKUPS):  #delete backups except newest
             logger.debug(f"Deleting \"{os.path.join(CONFIG['dropbox_dest_path'], dropbox_dest_path_filenames[i])}\"...")
             dbx.files_delete_v2(os.path.join(CONFIG["dropbox_dest_path"], dropbox_dest_path_filenames[i]))
             logger.debug(f"\rDeleted \"{os.path.join(CONFIG['dropbox_dest_path'], dropbox_dest_path_filenames[i])}\".")
-        logger.debug("")
-        logger.info(f"\rDeleted old backups.")
