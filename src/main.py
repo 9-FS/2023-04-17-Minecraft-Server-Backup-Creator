@@ -1,6 +1,6 @@
 #Copyright (c) 2023 구FS, all rights reserved. Subject to the MIT licence in `licence.md`.
 import datetime as dt
-import dropbox
+import dropbox, dropbox.exceptions
 import json
 import KFS.config, KFS.dropbox, KFS.log
 import logging
@@ -11,8 +11,8 @@ from exec_server_command import exec_minecraft_server_command
 
 
 @KFS.log.timeit
-def main(logger: logging.Logger) -> None:
-    backup_filename: str                                    #filename of a backup
+def main() -> None:
+    backups_filename: list[str]                             #filename of a backups local, should usually only be 1
     CONFIG: dict[str, str]                                  #dropbox_dest_path, minecraft_server_screen_name, source_path
     CONFIG_CONTENT_DEFAULT: dict[str, str]={                #linux screen name to attach to for server commands
         "dropbox_dest_path": "",
@@ -45,12 +45,12 @@ def main(logger: logging.Logger) -> None:
 
 
     while True:
-        logger.info("--------------------------------------------------")
+        logging.info("--------------------------------------------------")
         server_backup_next_DT=dt.datetime.combine(dt.datetime.now(dt.timezone.utc).date(), SERVER_BACKUP_T) #next backup datetime today at backup time
         server_backup_next_DT=pytz.timezone("UTC").localize(server_backup_next_DT)                          #make timezone aware
         if server_backup_next_DT<dt.datetime.now(dt.timezone.utc):                                          #if already past:
             server_backup_next_DT+=dt.timedelta(days=1)                                                     #tomorrow
-        logger.info(f"next server backup at: {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')}")
+        logging.info(f"next server backup at: {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')}")
         
         shutdown_warnings=[ #shutdown warning plan
             (1000,   f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for its daily backup."),
@@ -70,39 +70,49 @@ def main(logger: logging.Logger) -> None:
         for shutdown_warning in shutdown_warnings:                                                                  #make shutdown warnings beforehand
             while dt.datetime.now(dt.timezone.utc)<server_backup_next_DT-dt.timedelta(seconds=shutdown_warning[0]): #wait until appropiate warning time
                 time.sleep(0.1)
-            exec_minecraft_server_command(shutdown_warning[1], CONFIG["minecraft_server_screen_name"], logger)      #get warning out
-        exec_minecraft_server_command("stop", CONFIG["minecraft_server_screen_name"], logger)                       #shutdown server
+            exec_minecraft_server_command(shutdown_warning[1], CONFIG["minecraft_server_screen_name"])              #get warning out
+        exec_minecraft_server_command("stop", CONFIG["minecraft_server_screen_name"])                               #shutdown server
         time.sleep(100)                                                                                             #wait until shutdown process complete
 
-        backup_filename=f"{server_backup_next_DT.strftime('%Y-%m-%d %H_%M')} backup.tar"        #backup filename is backup datetime .tar
-        logger.info(f"Executing \"tar cf \"{backup_filename}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backup_filename}\"...")
-        os.system(f"tar cf \"{backup_filename}\" \"{CONFIG['source_path']}\"")                  #compress server folder
-        logger.info(f"\rExecuted \"tar cf \"{backup_filename}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backup_filename}\".")
+        backups_filename=[backup_filename
+                          for backup_filename
+                          in os.listdir(".")
+                          if os.path.isfile(backup_filename)==True and os.path.splitext(backup_filename)==".tar"]   #list already existing backups that remained because upload failed or something
+        backups_filename.append(f"{server_backup_next_DT.strftime('%Y-%m-%d %H_%M')} backup.tar")                   #next backup filename is backup datetime .tar
+        logging.info(f"Executing \"tar cf \"{backups_filename[-1]}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backups_filename[-1]}\"...")
+        os.system(f"tar cf \"{backups_filename[-1]}\" \"{CONFIG['source_path']}\"")                  #compress server folder
+        logging.info(f"\rExecuted \"tar cf \"{backups_filename[-1]}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backups_filename[-1]}\".")
 
-        logger.info(f"Executing \"{server_restart_command}\" to restart server...")
+        logging.info(f"Executing \"{server_restart_command}\" to restart server...")
         os.system(server_restart_command)   #restart server as soon as possible
-        logger.info(f"\rExecuted \"{server_restart_command}\" to restart server.")
+        logging.info(f"\rExecuted \"{server_restart_command}\" to restart server.")
+        
+        for backup_filename in backups_filename:    #upload backups
+            logging.info(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\"...")
+            try:
+                KFS.dropbox.upload_file(dbx, backup_filename, os.path.join(CONFIG["dropbox_dest_path"], backup_filename))
+            except dropbox.exceptions.InternalServerError:
+                logging.error(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\" failed with dropbox.exceptions.InternalServerError.")
+                continue    #if failed: don't delete, try again tomorrow
+            else:
+                logging.info(f"\rUploaded \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\".")
 
-        logger.info(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\"...")
-        KFS.dropbox.upload_file(dbx, backup_filename, os.path.join(CONFIG["dropbox_dest_path"], backup_filename))   #upload backup
-        logger.info(f"\rUploaded \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\".")
+            logging.info(f"Deleting {backup_filename}...")
+            try:
+                os.remove(backup_filename)  #clean up
+            except PermissionError:
+                logging.error(f"Deleting {backup_filename} failed with PermissionError.")
+            else:
+                logging.info(f"\rDeleted {backup_filename}.")
 
-        logger.info(f"Deleting {backup_filename}...")
-        try:
-            os.remove(backup_filename)  #clean up
-        except PermissionError:
-            logger.error(f"Deleting {backup_filename} failed with PermissionError.")
-        else:
-            logger.info(f"\rDeleted {backup_filename}.")
-
-        logger.info(f"Loading filenames from \"{CONFIG['dropbox_dest_path']}\"...")
+        logging.info(f"Loading filenames from \"{CONFIG['dropbox_dest_path']}\"...")
         dropbox_dest_path_filenames=[dropbox_dest_path_filename #backups in dropbox, must be file and .tar
                                      for dropbox_dest_path_filename
                                      in sorted(KFS.dropbox.list_files(dbx, CONFIG["dropbox_dest_path"], not_exist_ok=False))
                                      if os.path.isfile(dropbox_dest_path_filename)==True and os.path.splitext(dropbox_dest_path_filename)==".tar"]    
-        logger.info(f"\rLoaded filenames from \"{CONFIG['dropbox_dest_path']}\".")
-        logger.debug(dropbox_dest_path_filenames)
+        logging.info(f"\rLoaded filenames from \"{CONFIG['dropbox_dest_path']}\".")
+        logging.debug(dropbox_dest_path_filenames)
         for i in range(len(dropbox_dest_path_filenames)-KEEP_BACKUPS):  #delete backups except newest
-            logger.debug(f"Deleting \"{os.path.join(CONFIG['dropbox_dest_path'], dropbox_dest_path_filenames[i])}\"...")
+            logging.info(f"Deleting \"{os.path.join(CONFIG['dropbox_dest_path'], dropbox_dest_path_filenames[i])}\"...")
             dbx.files_delete_v2(os.path.join(CONFIG["dropbox_dest_path"], dropbox_dest_path_filenames[i]))
-            logger.debug(f"\rDeleted \"{os.path.join(CONFIG['dropbox_dest_path'], dropbox_dest_path_filenames[i])}\".")
+            logging.info(f"\rDeleted \"{os.path.join(CONFIG['dropbox_dest_path'], dropbox_dest_path_filenames[i])}\".")

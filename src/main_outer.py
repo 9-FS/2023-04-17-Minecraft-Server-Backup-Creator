@@ -7,7 +7,7 @@ from main import main
 
 logger=KFS.log.setup_logging(__name__, logging.INFO)
 try:
-    main(logger)
+    main()
 except:
     logging.critical(traceback.format_exc())
     
