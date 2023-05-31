@@ -5,7 +5,7 @@ import traceback    #exception message full when program crashes as .exe
 from main import main
 
 
-logger=KFS.log.setup_logging(__name__, logging.INFO)
+KFS.log.setup_logging("", logging_level=logging.INFO)
 try:
     main()
 except:
