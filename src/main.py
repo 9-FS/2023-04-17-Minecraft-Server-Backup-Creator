@@ -106,10 +106,10 @@ def main() -> None:
                 logging.info(f"\rDeleted {backup_filename}.")
 
         logging.info(f"Loading filenames from \"{CONFIG['dropbox_dest_path']}\"...")
-        dropbox_dest_path_filenames=[dropbox_dest_path_filename #backups in dropbox, must be file and .tar
+        dropbox_dest_path_filenames=[dropbox_dest_path_filename #backups in dropbox, must be .tar
                                      for dropbox_dest_path_filename
                                      in sorted(KFS.dropbox.list_files(dbx, CONFIG["dropbox_dest_path"], not_exist_ok=False))
-                                     if os.path.isfile(dropbox_dest_path_filename)==True and os.path.splitext(dropbox_dest_path_filename)==".tar"]    
+                                     if os.path.splitext(dropbox_dest_path_filename)[1]==".tar"]    
         logging.info(f"\rLoaded filenames from \"{CONFIG['dropbox_dest_path']}\".")
         logging.debug(dropbox_dest_path_filenames)
         for i in range(len(dropbox_dest_path_filenames)-KEEP_BACKUPS):  #delete backups except newest
