@@ -28,7 +28,8 @@ def main() -> None:
     }
     dropbox_dest_path_filenames: list[str]                  #in destination path filenames
     KEEP_BACKUPS: int=30                                    #keep this amount of most recent backups
-    server_backup_next_DT: dt.datetime                      #next backup datetime
+    server_backup_next_default_DT: dt.datetime              #next default backup datetime
+    server_backup_next_DT: dt.datetime                      #next actual backup datetime, may be different than default if user overrides
     SERVER_BACKUP_T: dt.time=dt.time(hour=0, minute=0)      #at what time will the backups be made
     shutdown_warnings: list[tuple[float, str]]              #shutdown warning plan
 
@@ -46,39 +47,58 @@ def main() -> None:
 
     while True:
         logging.info("--------------------------------------------------")
-        server_backup_next_DT=dt.datetime.combine(dt.datetime.now(dt.timezone.utc).date(), SERVER_BACKUP_T) #next backup datetime today at backup time
-        server_backup_next_DT=pytz.timezone("UTC").localize(server_backup_next_DT)                          #make timezone aware
-        if server_backup_next_DT<dt.datetime.now(dt.timezone.utc):                                          #if already past:
-            server_backup_next_DT+=dt.timedelta(days=1)                                                     #tomorrow
-        logging.info(f"next server backup at: {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')}")
+        logging.info("")    #"next server backup at" line can overwrite itself
+        server_backup_next_default_DT=dt.datetime.combine(dt.datetime.now(dt.timezone.utc).date(), SERVER_BACKUP_T) #next backup datetime is by default today at backup time
+        server_backup_next_default_DT=pytz.timezone("UTC").localize(server_backup_next_default_DT)                  #make timezone aware
+        if server_backup_next_default_DT<dt.datetime.now(dt.timezone.utc):                                          #if already past:
+            server_backup_next_default_DT+=dt.timedelta(days=1)                                                     #tomorrow
+        with open("server_backup_next_DT.config", "wt") as server_backup_next_file:                                 #write default into file first
+            server_backup_next_file.write(server_backup_next_default_DT.strftime("%Y-%m-%dT%H:%M:%S"))
         
-        shutdown_warnings=[ #shutdown warning plan
-            (1000,   f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for its daily backup."),
-            ( 100,   f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for its daily backup."),
-            (  50,    "say 50"),
-            (  40,    "say 40"),
-            (  30,    "say 30"),
-            (  20,    "say 20"),
-            (  10,    "say 10"),
-            (   5,    "say 5"),
-            (   4,    "say 4"),
-            (   3,    "say 3"),
-            (   2,    "say 2"),
-            (   1,    "say 1"),
-            (   0.5,  "say Shutdown."),
-        ]
-        for shutdown_warning in shutdown_warnings:                                                                  #make shutdown warnings beforehand
+        while True:         #determine server_backup_next_DT, but keep it variable until within shutdown plan
+            with open("server_backup_next_DT.config", "rt") as server_backup_next_file:
+                server_backup_next_DT=dt.datetime.strptime(server_backup_next_file.read(), "%Y-%m-%dT%H:%M:%S")
+            server_backup_next_DT=pytz.timezone("UTC").localize(server_backup_next_DT)  #make timezone aware
+            logging.info(f"\rNext server backup will be made at {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M:%S')}.")
+
+            shutdown_warnings=[ #shutdown warning plan
+                (1000,   f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for a backup."),
+                ( 100,   f"say Warning: Server will restart at UTC {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M')} for a backup."),
+                (  50,    "say 50"),
+                (  40,    "say 40"),
+                (  30,    "say 30"),
+                (  20,    "say 20"),
+                (  10,    "say 10"),
+                (   5,    "say 5"),
+                (   4,    "say 4"),
+                (   3,    "say 3"),
+                (   2,    "say 2"),
+                (   1,    "say 1"),
+                (   0.5,  "say Shutdown."),
+            ]
+            if dt.datetime.now(dt.timezone.utc)<server_backup_next_DT-dt.timedelta(seconds=shutdown_warnings[0][0]):    
+                time.sleep(5)
+                continue
+            break   #if within shutdown warning plan: server_backup_next_DT now fixed, begin shutdown warning plan
+        logging.info(f"Server backup DT is now fixed to {server_backup_next_DT.strftime('%Y-%m-%dT%H:%M:%S')}.")
+            
+            
+        for shutdown_warning in shutdown_warnings:                                                                  #give shutdown warnings
             while dt.datetime.now(dt.timezone.utc)<server_backup_next_DT-dt.timedelta(seconds=shutdown_warning[0]): #wait until appropiate warning time
                 time.sleep(0.1)
             exec_minecraft_server_command(shutdown_warning[1], CONFIG["minecraft_server_screen_name"])              #get warning out
         exec_minecraft_server_command("stop", CONFIG["minecraft_server_screen_name"])                               #shutdown server
+        logging.info("Waiting 100s...")
         time.sleep(100)                                                                                             #wait until shutdown process complete
+        logging.info("\rWaited 100s.")
 
         backups_filename=[backup_filename
                           for backup_filename
                           in os.listdir(".")
                           if os.path.isfile(backup_filename)==True and os.path.splitext(backup_filename)==".tar"]   #list already existing backups that remained because upload failed or something
         backups_filename.append(f"{server_backup_next_DT.strftime('%Y-%m-%d %H_%M')} backup.tar")                   #next backup filename is backup datetime .tar
+        logging.debug("backup filenames:")
+        logging.debug(backups_filename)
         logging.info(f"Executing \"tar cf \"{backups_filename[-1]}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backups_filename[-1]}\"...")
         os.system(f"tar cf \"{backups_filename[-1]}\" \"{CONFIG['source_path']}\"")                  #compress server folder
         logging.info(f"\rExecuted \"tar cf \"{backups_filename[-1]}\" \"{CONFIG['source_path']}\"\" to compress \"{CONFIG['source_path']}\" into \"{backups_filename[-1]}\".")
