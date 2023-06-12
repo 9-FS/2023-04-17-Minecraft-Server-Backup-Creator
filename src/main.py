@@ -94,6 +94,9 @@ def main() -> None:
             except dropbox.exceptions.InternalServerError:
                 logging.error(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\" failed with dropbox.exceptions.InternalServerError.")
                 continue    #if failed: don't delete, try again tomorrow
+            except dropbox.exceptions.ApiError:
+                logging.error(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\" failed with dropbox.exceptions.ApiError.")
+                continue    #if failed: don't delete, try again tomorrow
             else:
                 logging.info(f"\rUploaded \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\".")
 
