@@ -6,6 +6,7 @@ import KFS.config, KFS.dropbox, KFS.log
 import logging
 import os
 import pytz
+import requests
 import time
 from exec_server_command import exec_minecraft_server_command
 
@@ -111,11 +112,8 @@ def main() -> None:
             logging.info(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\"...")
             try:
                 KFS.dropbox.upload_file(dbx, backup_filename, os.path.join(CONFIG["dropbox_dest_path"], backup_filename))
-            except dropbox.exceptions.InternalServerError:
-                logging.error(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\" failed with dropbox.exceptions.InternalServerError.")
-                continue    #if failed: don't delete, try again tomorrow
-            except dropbox.exceptions.ApiError:
-                logging.error(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\" failed with dropbox.exceptions.ApiError.")
+            except (dropbox.exceptions.ApiError, dropbox.exceptions.InternalServerError, requests.exceptions.ConnectionError):
+                logging.error(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\" failed.")
                 continue    #if failed: don't delete, try again tomorrow
             else:
                 logging.info(f"\rUploaded \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\".")
