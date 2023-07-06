@@ -1,4 +1,5 @@
 *.bat
+*.config
 *.exe
 *.json
 *.log
