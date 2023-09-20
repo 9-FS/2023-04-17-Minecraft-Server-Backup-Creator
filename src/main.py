@@ -35,7 +35,7 @@ def main() -> None:
     shutdown_warnings: list[tuple[float, str]]              # shutdown warning plan
 
     try:
-        CONFIG=json.loads(KFS.config.load_config("minecraft server dropbox backup creator.json", json.dumps(CONFIG_CONTENT_DEFAULT, indent=4)))
+        CONFIG=json.loads(KFS.config.load_config("config.json", json.dumps(CONFIG_CONTENT_DEFAULT, indent=4)))
     except FileNotFoundError:
         return
     try:
