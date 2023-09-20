@@ -1,0 +1,22 @@
+[tool.poetry]
+authors     = ["9FS <pray4spam@googlemail.com>"]
+description = ""
+license     = "MIT"
+name        = "Minecraft Server Dropbox Backup Creator"
+readme      = "readme.md"
+repository  = "https://github.com/9-FS/2023-04-17-Minecraft-Server-Dropbox-Backup-Creator"
+version     = "1.0.0"
+
+[tool.poetry.dependencies]
+KFS      = "^1.0.0"
+dropbox  = "^11.36.2"
+python   = "^3.11.0, <3.13"
+pytz     = "^2023.3.post1"
+requests = "^2.31.0"
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^5.13.2"
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires      = ["poetry-core"]
