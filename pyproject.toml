@@ -8,14 +8,13 @@ repository  = "https://github.com/9-FS/2023-04-17-Minecraft-Server-Dropbox-Backu
 version     = "1.0.0"
 
 [tool.poetry.dependencies]
-KFS      = "^1.0.0"
-dropbox  = "^11.36.2"
-python   = "^3.11.0, <3.13"
-pytz     = "^2023.3.post1"
-requests = "^2.31.0"
-
-[tool.poetry.group.dev.dependencies]
-pyinstaller = "^5.13.2"
+dropbox    = "^11.36.2"
+kfsconfig  = "^1.0.0"
+kfsdropbox = "^1.0.0"
+kfslog     = "^1.0.0"
+python     = "^3.11.0"
+pytz       = "^2023.3.post1"
+requests   = "^2.31.0"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"

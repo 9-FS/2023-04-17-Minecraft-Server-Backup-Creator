@@ -2,7 +2,9 @@
 import datetime as dt
 import dropbox, dropbox.exceptions
 import json
-import KFS.config, KFS.dropbox, KFS.log
+from KFSconfig  import KFSconfig
+from KFSdropbox import KFSdropbox
+from KFSlog     import KFSlog
 import logging
 import os
 import pytz
@@ -11,7 +13,7 @@ import time
 from exec_server_command import exec_minecraft_server_command
 
 
-@KFS.log.timeit
+@KFSlog.timeit
 def main() -> None:
     backups_filename: list[str]                             # filename of a backups local, should usually only be 1
     CONFIG: dict[str, str]                                  # dropbox_dest_path, minecraft_server_screen_name, source_path
@@ -35,11 +37,11 @@ def main() -> None:
     shutdown_warnings: list[tuple[float, str]]              # shutdown warning plan
 
     try:
-        CONFIG=json.loads(KFS.config.load_config("config.json", json.dumps(CONFIG_CONTENT_DEFAULT, indent=4)))
+        CONFIG=json.loads(KFSconfig.load_config("config.json", json.dumps(CONFIG_CONTENT_DEFAULT, indent=4)))
     except FileNotFoundError:
         return
     try:
-        DROPBOX_API_CRED=json.loads(KFS.config.load_config("dropbox_API.json", json.dumps(DROPBOX_CONFIG_CONTENT_DEFAULT, indent=4)))                           # load API credentials
+        DROPBOX_API_CRED=json.loads(KFSconfig.load_config("dropbox_API.json", json.dumps(DROPBOX_CONFIG_CONTENT_DEFAULT, indent=4)))                           # load API credentials
     except FileNotFoundError:
         return
     dbx=dropbox.Dropbox(oauth2_refresh_token=DROPBOX_API_CRED["refresh_token"], app_key=DROPBOX_API_CRED["app_key"], app_secret=DROPBOX_API_CRED["app_secret"]) # create Dropbox instance
@@ -111,7 +113,7 @@ def main() -> None:
         for backup_filename in backups_filename:    # upload backups
             logging.info(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\"...")
             try:
-                KFS.dropbox.upload_file(dbx, backup_filename, os.path.join(CONFIG["dropbox_dest_path"], backup_filename))
+                KFSdropbox.upload_file(dbx, backup_filename, os.path.join(CONFIG["dropbox_dest_path"], backup_filename))
             except (dropbox.exceptions.ApiError, dropbox.exceptions.InternalServerError, requests.exceptions.ConnectionError):
                 logging.error(f"Uploading \"{backup_filename}\" to \"{os.path.join('Dropbox', CONFIG['dropbox_dest_path'])}\" failed.")
                 continue                            # if failed: don't delete, try again tomorrow
@@ -129,7 +131,7 @@ def main() -> None:
         logging.info(f"Loading filenames from \"{CONFIG['dropbox_dest_path']}\"...")
         dropbox_dest_path_filenames=[dropbox_dest_path_filename         # backups in dropbox, must be .tar
                                      for dropbox_dest_path_filename
-                                     in sorted(KFS.dropbox.list_files(dbx, CONFIG["dropbox_dest_path"], not_exist_ok=False))
+                                     in sorted(KFSdropbox.list_files(dbx, CONFIG["dropbox_dest_path"], not_exist_ok=False))
                                      if os.path.splitext(dropbox_dest_path_filename)[1]==".tar"]    
         logging.info(f"\rLoaded filenames from \"{CONFIG['dropbox_dest_path']}\".")
         logging.debug(dropbox_dest_path_filenames)
