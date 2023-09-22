@@ -2,10 +2,10 @@
 authors     = ["9FS <pray4spam@googlemail.com>"]
 description = ""
 license     = "MIT"
-name        = "Minecraft Server Dropbox Backup Creator"
+name        = "x"                                                                          # can't leave empty because of bug with `poetry install` from poetry.lock file
 readme      = "readme.md"
 repository  = "https://github.com/9-FS/2023-04-17-Minecraft-Server-Dropbox-Backup-Creator"
-version     = "1.0.0"
+version     = "1.0.1"
 
 [tool.poetry.dependencies]
 dropbox    = "^11.36.2"
