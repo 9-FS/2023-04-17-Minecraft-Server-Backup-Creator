@@ -1,5 +1,4 @@
 *.exe
-*.json
 *.log
 *.pyc
 *.token
@@ -9,4 +8,7 @@
 doc_templates/
 log/
 
+config/dropbox_API_cred.json
+config/settings.json
+Dockerfile
 tests/test.py
